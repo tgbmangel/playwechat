@@ -9,31 +9,33 @@ from itchat.content import *
 
 hh='http://web.juhe.cn:8080/finance/stock/hs?gid=sh601009'
 
-# @itchat.msg_register([TEXT, MAP, CARD, NOTE, SHARING])
-# def text_reply(msg):
-#     # cont = alice.respond(msg['Text'])
-#     print(msg["Content"])
-#     cont = requests.get('http://www.tuling123.com/openapi/api?key=f9edc634f48e406bb2d6d30132ff8293&info=%s' % msg['Content']).content
-#     m = json.loads(cont)
-#     itchat.send(m['text'], msg['FromUserName'])
-#     if m['code'] == 200000:
-#         itchat.send(m['url'], msg['FromUserName'])
-#     if m['code'] == 302000:
-#         itchat.send(m['list'], msg['FromUserName'])
-#     if m['code'] == 308000:
-#         itchat.send(m['list'], msg['FromUserName'])
+@itchat.msg_register([TEXT, MAP, CARD, NOTE, SHARING])
+def text_single_reply(msg):
+    # cont = alice.respond(msg['Text'])
+    print(msg["Content"])
+    cont = requests.get('http://www.tuling123.com/openapi/api?key=f9edc634f48e406bb2d6d30132ff8293&info=%s' % msg['Content']).content
+    m = json.loads(cont)
+    itchat.send(m['text'], msg['FromUserName'])
+    if m['code'] == 200000:
+        itchat.send(m['url'], msg['FromUserName'])
+    if m['code'] == 302000:
+        itchat.send(m['list'], msg['FromUserName'])
+    if m['code'] == 308000:
+        itchat.send(m['list'], msg['FromUserName'])
 
 @itchat.msg_register(TEXT, isGroupChat = True)
 def text_reply(msg):
-    #if msg['IsAt']:
     # for (k,v) in msg.items():
     #     print(k,v)
     cont = requests.get('http://www.tuling123.com/openapi/api?key=f9edc634f48e406bb2d6d30132ff8293&info=%s' % msg['Content']).content
     m = json.loads(cont)
     print(m)
     time.sleep(1.5)
-    #print(msg['FromUserName'])
-    if msg['FromUserName']==get_chatroom_username(u'三板桥Style') or msg['FromUserName']==get_chatroom_username(u'信计'):
+    talk_show=[]
+    talk_show+=[get_chatroom_username(u'信计'),get_chatroom_username(u'朱家群')]
+    #print(msg['FromUserName'])#msg['IsAt'] or
+    if  msg['FromUserName'] in talk_show:
+    #if msg['FromUserName'] in talk_show:
         if msg['Content']=='':
             itchat.send(u'@%s\u2005I received: %s' % (msg['ActualNickName'], "- -@"), msg['FromUserName'])
         itchat.send(m['text'], msg['FromUserName'])
@@ -61,7 +63,7 @@ def stock_data(stockid):
 
 def send_stock_price(stockid,taget_price,user):
     StockdataList=stock_data(stockid)
-    stockName,now_price=StockdataList[0],float(StockdataList[3])
+    stockName,tomorrow_price,now_price=StockdataList[0],float(StockdataList[2]),float(StockdataList[3])
     if now_price>taget_price:
         MoreThanMessage="[%s] 当前价格: %s 高于目标价 %s" %(stockName,str(now_price),str(taget_price))
         itchat.send(MoreThanMessage,toUserName=user)
@@ -70,6 +72,13 @@ def send_stock_price(stockid,taget_price,user):
         LessThanMessage="[%s] 当前价格: %s 少于目标价 %s" %(stockName,str(now_price),str(taget_price))
         #itchat.send("[%s] 当前价格: %s 少于目标价 %s" %(stockName,str(now_price),str(taget_price)),toUserName=user)
         print(LessThanMessage)
+    real_rate_price=(now_price-tomorrow_price)/tomorrow_price
+    if real_rate_price<-0.05:
+        Die_message="[%s] 当前价格: %s  当日跌幅%.2f%%超过5%%,请关注"     %(stockName,str(now_price),real_rate_price*100)
+        itchat.send(Die_message,toUserName=user)
+    if real_rate_price>0.05:
+        Zhang_message="[%s] 当前价格: %s 当日涨幅%.2f%%超过5%%,请关注"     %(stockName,str(now_price),real_rate_price*100)
+        itchat.send(Zhang_message,toUserName=user)
 
 def send_shoupanzongjie(stockid,user):
     StockdataList=stock_data(stockid)
@@ -97,9 +106,13 @@ def star_at(*FuWu_List):
         if a.hour>14 and a.minute>5:
             break
         time.sleep(90)
+
 def get_chatroom_username(room_name):
-    chatroomUserName=itchat.search_chatrooms(room_name)[0]['UserName']
-    return  chatroomUserName
+    try:
+        chatroomUserName=itchat.search_chatrooms(room_name)[0]['UserName']
+        return  chatroomUserName
+    except Exception as e:
+        return
 
 if __name__=="__main__":
     #
@@ -107,6 +120,7 @@ if __name__=="__main__":
     THGF="sz002419"
     BYD='sz002594'
     HOWY="sz002084"
+    HNFZ='sz000722'
     #USER
     Father="wxid_9r9d2qe5df3o22"
     dingwei="wei_dingw"
@@ -119,12 +133,13 @@ if __name__=="__main__":
     FuWu_chelu_THGF=[THGF,16.5,chenlu]
     FuWu_myself_SQJT=[SQJT,30,Father]
     FuWu_myself_BYD=[BYD,55,Father]
+    FuWu_myself_HNFZ=[HNFZ,16,Father]
     FuWu_dingwei=[HOWY,13.88,dingwei]
     #
     threading.Thread(target=itchat_run).start()
-    star_at(FuWu_chelu_THGF,FuWu_myself_SQJT,FuWu_myself_BYD,FuWu_dingwei)
+    star_at(FuWu_chelu_THGF,FuWu_myself_SQJT,FuWu_myself_HNFZ,FuWu_dingwei)
     #
     send_shoupanzongjie(THGF,chatroomUserName)
     send_shoupanzongjie(SQJT,Father)
-    send_shoupanzongjie(BYD,Father)
+    send_shoupanzongjie(HNFZ,Father)
     send_shoupanzongjie(HOWY,chatroomUserName)
